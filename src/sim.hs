@@ -39,35 +39,12 @@ main = do
     vid <- newArray (0, 0x1bff) 0
     vbuf <- newBufferArray
 
-    let p0 = MkPlayer False False False False
-    sim <- simulateIO_ @System
-        (bundle . uncurryN mainBoard . unbundle)
-        (0x00, False, False, p0, p0, Nothing)
+    sim <- simulateIO_ @System (bundle . mainBoard) Nothing
 
     withMainWindow videoParams $ \events keyDown -> do
         guard $ not $ keyDown ScancodeEscape
 
-        let dips = 0x00
-            tilt = False
-            coin = keyDown ScancodeC
-            p1 = MkPlayer
-                { pLeft = keyDown ScancodeLeft
-                , pRight = keyDown ScancodeRight
-                , pShoot = keyDown ScancodeLCtrl
-                , pStart = keyDown ScancodeReturn
-                }
-            p2 = MkPlayer
-               { pLeft = False
-               , pRight = False
-               , pShoot = False
-               , pStart = False
-               }
-
-        liftIO $ do
-            let run = sim $ uncurryN $ \ vidAddr vidWrite -> do
-                    vidRead <- world vid vbuf vidAddr vidWrite
-                    return (dips, tilt, coin, p1, p2, vidRead)
-            replicateM_ 4000 run
+        liftIO $ replicateM_ 4000 $ sim $ uncurryN $ world vid vbuf
         return $ rasterizeBuffer vbuf
 
 videoParams :: VideoParams
