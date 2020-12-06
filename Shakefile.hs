@@ -55,3 +55,6 @@ main = shakeArgs shakeOptions{ shakeFiles = outDir } $ do
 
     phony "clashi" $
       clash ["--interactive", "src/Hardware/SpaceInvaders.hs"]
+
+    phony "clash" $
+      need [outDir </> "clash/verilog/Hardware/topEntity/topEntity.manifest"]
