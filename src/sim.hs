@@ -42,7 +42,7 @@ main = do
     let p0 = MkPlayer False False False False
     sim <- simulateIO_ @System
         (bundle . uncurryN mainBoard . unbundle)
-        (0x00, False, False, p0, p0, Nothing, Nothing)
+        (0x00, False, False, p0, p0, Nothing)
 
     withMainWindow videoParams $ \events keyDown -> do
         guard $ not $ keyDown ScancodeEscape
@@ -64,13 +64,10 @@ main = do
                }
 
         liftIO $ do
-            let run line = sim $ uncurryN $ \ vidAddr vidWrite -> do
+            let run = sim $ uncurryN $ \ vidAddr vidWrite -> do
                     vidRead <- world vid vbuf vidAddr vidWrite
-                    return (dips, tilt, coin, p1, p2, vidRead, line)
-            replicateM_ 4000 $ run Nothing
-            run $ Just 95
-            replicateM_ 4000 $ run Nothing
-            run $ Just maxBound
+                    return (dips, tilt, coin, p1, p2, vidRead)
+            replicateM_ 4000 run
         return $ rasterizeBuffer vbuf
 
 videoParams :: VideoParams
