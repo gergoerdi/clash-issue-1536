@@ -34,6 +34,8 @@ dependencies:
   - barbies
   - barbies-th
   - tuple
+  - dependent-map
+  - dependent-sum
 
 # Anything that Clash uses by default should go here
 default-extensions:

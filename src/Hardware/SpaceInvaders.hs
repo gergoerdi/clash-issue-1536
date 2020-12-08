@@ -20,6 +20,12 @@ import RetroClash.PS2
 import RetroClash.Memory
 import RetroClash.Barbies
 import Data.Maybe
+import Control.Monad (guard, mplus)
+
+import Data.Dependent.Map as DMap
+import Data.Dependent.Sum as DSum
+import Type.Reflection
+
 
 topEntity
     :: "CLK_25MHZ" ::: Clock Dom25
@@ -74,7 +80,47 @@ mainBoard dips tilt coin p1 p2 vidRead lineEnd = (vidAddr, vidWrite)
         , enable (lineEnd .== Just maxBound) (pure 2)
         ]
 
-    (dataIn, (vidAddr, vidWrite)) = memoryMap _addrOut _dataOut $ override rst $ do
+    conns0 = DMap.fromList
+        [ Component (typeRep :: TypeRep (Index 0x2000)) 0 :=> fanInMaybe addr0
+        , Component (typeRep :: TypeRep (Index 0x0400)) 1 :=> fanInMaybe addr1
+        , Component (typeRep :: TypeRep VidAddr) 2 :=> fanInMaybe addr2
+        , Component (typeRep :: TypeRep (Index 7)) 3 :=> fanInMaybe addr3
+        ]
+      where
+        addr0 = fmap (match0 =<<) _addrOut
+        addr1 = fmap (match1 =<<) _addrOut
+        addr2 = fmap (match2 =<<) _addrOut
+        addr3 = fmap (match3 =<<) _addrOut
+
+        match0 addr = do
+            Right addr <- return addr
+            guard $ addr < 0x2000
+            return $ fromIntegral addr
+
+        match1 addr = do
+            Right addr <- return addr
+            let match1 = do
+                    guard $ 0x2000 <= addr
+                    guard $ addr < 0x2400
+                    return $ fromIntegral $ addr - 0x2000
+                match2 = do
+                    guard $ 0x4000 <= addr
+                    guard $ addr < 0x4400
+                    return $ fromIntegral $ addr - 0x4000
+            match1 `mplus` match2
+
+        match2 addr = do
+            Right addr <- return addr
+            guard $ 0x2400 <= addr
+            guard $ addr < 0x4000
+            return $ fromIntegral $ addr - 0x2400
+
+        match3 addr = do
+            Left addr <- return addr
+            guard $ addr <= 7
+            return $ fromIntegral addr
+
+    (dataIn, (vidAddr, vidWrite)) = memoryMap _addrOut _dataOut conns0 $ override rst $ do
         rom <- romFromFile (SNat @0x2000) "_build/SpaceInvaders.bin"
         ram <- ram0 (SNat @0x0400)
         (vid, vidAddr, vidWrite) <- conduit vidRead
