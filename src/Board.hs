@@ -50,11 +50,11 @@ board addr wr = dataIn
                     return $ fromIntegral $ addr - 0x4000
             match1 `mplus` match2
 
-    (dataIn, ()) = memoryMap addr wr conns0 $ do
-        rom <- romFromFile (SNat @0x2000) "_build/SpaceInvaders.bin"
-        ram <- ram0 (SNat @0x0400)
+    (dataIn, ()) = memoryMap addr wr $ do
+        -- ram <- ram0 (SNat @0x0400)
 
-        matchRight $ do
-            from 0x0000 $ connect rom
-            from 0x2000 $ connect ram
-            from 0x4000 $ connect ram
+        -- matchRight $ do
+        --     from 0x2000 $ connect ram
+        --     from 0x4000 $ connect ram
+        () <- return ()
+        return ()
