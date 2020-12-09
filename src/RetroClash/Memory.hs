@@ -3,7 +3,6 @@
 module RetroClash.Memory where
 
 import Clash.Prelude
-import Control.Arrow (first, second)
 import Data.Maybe
 import Control.Monad
 import Control.Monad.RWS
@@ -101,24 +100,6 @@ tag
     -> Addressing s dom dat (addr', addr) a
     -> Addressing s dom dat addr a
 tag t = matchAddr $ \addr -> Just (t, addr)
-
-matchLeft
-    :: Addressing s dom dat addr1 a
-    -> Addressing s dom dat (Either addr1 addr2) a
-matchLeft = matchAddr $ either Just (const Nothing)
-
-matchRight
-    :: Addressing s dom dat addr2 a
-    -> Addressing s dom dat (Either addr1 addr2) a
-matchRight = matchAddr $ either (const Nothing) Just
-
-override
-    :: Signal dom (Maybe dat)
-    -> Addressing s dom dat addr a
-    -> Addressing s dom dat addr a
-override sig = Addressing . censor (first $ mappend sig') . unAddressing
-  where
-    sig' = gated (isJust <$> sig) (fanIn sig)
 
 from
     :: forall addr' s dom dat addr a. (Integral addr, Ord addr, Integral addr', Bounded addr')
