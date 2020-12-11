@@ -40,10 +40,9 @@ newtype Addressing s dom dat addr a = Addressing
 
 memoryMap
     :: Signal dom (Maybe addr)
-    -> Signal dom (Maybe dat)
     -> (forall s. Addressing s dom dat addr a)
     -> (Signal dom (Maybe dat), a)
-memoryMap addr wr body = (join <$> firstIn read, x)
+memoryMap addr body = (join <$> firstIn read, x)
   where
     (x, (read, conns)) = evalRWS (unAddressing body) (fanInMaybe addr, conns) 0
 
@@ -86,8 +85,7 @@ topEntity
     :: Clock System
     -> Reset System
     -> Signal System (Maybe (Index 0x0400))
-    -> Signal System (Maybe (Unsigned 8))
     -> (Signal System (Maybe (Unsigned 8)), ())
-topEntity clk rst addr wr = withClockResetEnable clk rst enableGen $ memoryMap addr wr $ do
+topEntity clk rst addr = withClockResetEnable clk rst enableGen $ memoryMap addr $ do
     ram <- ram0 (SNat @0x0400)
     connect ram
