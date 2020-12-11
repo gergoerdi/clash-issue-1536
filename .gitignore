@@ -1,3 +1,7 @@
+dist-newstyle
 /*.cabal
 _build
+.ghc.environment.*
+
+
 log.txt

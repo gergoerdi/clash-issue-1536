@@ -1,0 +1,14 @@
+source-repository-package
+  type: git
+  location: git://github.com/clash-lang/clash-compiler.git
+  tag: e7e161170899681a01316f00e892733e20fe62a9
+  subdir: clash-prelude clash-lib clash-ghc
+
+packages:
+  clash-issue1536.cabal
+
+package clash-prelude
+  flags: -large-tuples -no-multiple-hidden
+
+package *
+  ghc-options: -fexpose-all-unfoldings -fno-worker-wrapper
