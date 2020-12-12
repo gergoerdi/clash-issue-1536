@@ -74,11 +74,32 @@ fanInMaybe = FanIn . Ap . fmap First
 fanIn :: Signal dom a -> FanIn dom a
 fanIn = fanInMaybe . fmap pure
 
+matchAddr
+    :: (addr -> Maybe addr')
+    -> Addressing s dom dat addr' a
+    -> Addressing s dom dat addr a
+matchAddr match body = Addressing $ rws $ \(addr, addrs) s ->
+  let addr' = fanInMaybe . fmap (match =<<) . firstIn $ addr
+  in runRWS (unAddressing body) (addr', addrs) s
+
+from
+    :: forall addr' s dom dat addr a. (Integral addr, Ord addr, Integral addr', Bounded addr')
+    => addr
+    -> Addressing s dom dat addr' a
+    -> Addressing s dom dat addr a
+from base = matchAddr $ \addr -> do
+    guard $ addr >= base
+    let offset = addr - base
+    guard $ offset <= lim
+    return $ fromIntegral offset
+  where
+    lim = fromIntegral (maxBound :: addr')
+
 topEntity
     :: Clock System
     -> Reset System
-    -> Signal System (Maybe (Index 0x0400))
+    -> Signal System (Maybe (Index 0x0800))
     -> (Signal System (Maybe (Unsigned 8)), ())
 topEntity clk rst addr = withClockResetEnable clk rst enableGen $ memoryMap addr $ do
     ram <- ram0 (SNat @0x0400)
-    connect ram
+    from 0x0000 $ connect ram
