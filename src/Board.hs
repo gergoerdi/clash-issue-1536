@@ -103,3 +103,4 @@ topEntity
 topEntity clk rst addr = withClockResetEnable clk rst enableGen $ memoryMap addr $ do
     ram <- ram0 (SNat @0x0400)
     from 0x0000 $ connect ram
+    from 0x0400 $ connect ram
