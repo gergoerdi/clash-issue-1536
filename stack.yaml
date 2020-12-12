@@ -10,7 +10,17 @@ extra-deps:
   - dependent-map-0.4.0.0
 
 packages:
+  # - containers
   - '.'
+
+# extra-deps:
+#   - Cabal-3.0.1.0
+#   - binary-0.8.7.0
+#   - ghc-boot-8.8.3
+#   - ghc-boot-th-8.8.3
+#   - ghci-8.8.3
+#   - parsec-3.1.14.0
+#   - text-1.2.4.0
 
 ghc-options:
   dependent-map: -fexpose-all-unfoldings -fno-worker-wrapper

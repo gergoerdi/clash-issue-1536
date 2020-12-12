@@ -8,7 +8,7 @@ import Control.Monad
 import Control.Monad.RWS
 
 import Unsafe.Coerce
-import Data.Map as Map
+import Containers.Data.Map as Map
 
 newtype Component s addr = Component Int
     deriving newtype (Eq, Ord)
