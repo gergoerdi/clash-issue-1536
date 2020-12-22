@@ -13,19 +13,19 @@ type Key = Int
 newtype Component s addr = Component Key
     deriving newtype (Eq, Ord)
 
-newtype FanIn a = FanIn{ getFanIn :: First a }
+newtype FanIn dom a = FanIn{ getFanIn :: First a }
     deriving newtype (Semigroup, Monoid)
 
-newtype AddrMap s = AddrMap{ addrMap :: Map Int (FanIn (Index 0x0400)) }
+newtype AddrMap s dom = AddrMap{ addrMap :: Map Int (FanIn dom (Index 0x0400)) }
     deriving newtype (Monoid)
 
-instance Semigroup (AddrMap s) where
+instance Semigroup (AddrMap s dom) where
     AddrMap map1 <> AddrMap map2 = AddrMap $ unionWithKey (const mappend) map1 map2
 
-newtype Addressing s dat addr a = Addressing
+newtype Addressing s dom dat addr a = Addressing
     { unAddressing :: RWS
-          (FanIn addr, AddrMap s)
-          (FanIn (Maybe dat), AddrMap s)
+          (FanIn dom addr, AddrMap s dom)
+          (FanIn dom (Maybe dat), AddrMap s dom)
           Key
           a
     }
@@ -33,7 +33,7 @@ newtype Addressing s dat addr a = Addressing
 
 memoryMap
     :: Maybe addr
-    -> (forall s. Addressing s dat addr a)
+    -> (forall s. Addressing s dom dat addr a)
     -> (Maybe dat, a)
 memoryMap addr body = (join (firstIn read), x)
   where
@@ -41,7 +41,7 @@ memoryMap addr body = (join (firstIn read), x)
 
 readWrite_
     :: ((Maybe (Index 1024)) -> (Maybe dat))
-    -> Addressing s dat addr (Component s (Index 1024))
+    -> Addressing s dom dat addr (Component s (Index 1024))
 readWrite_ mkComponent = Addressing $ do
     component@(Component i) <- Component <$> get <* modify succ
     (_, addrs) <- ask
@@ -53,39 +53,39 @@ readWrite_ mkComponent = Addressing $ do
 ram0
     :: (1 <= n)
     => SNat n
-    -> Addressing s (Index 1024) addr (Component s (Index 1024))
+    -> Addressing s dom (Index 1024) addr (Component s (Index 1024))
 ram0 size@SNat = readWrite_ $ \addr ->
     Just $ negate (fromMaybe 2 addr)
 
 connect
     :: Component s (Index 1024)
-    -> Addressing s dat (Index 1024) ()
+    -> Addressing s dom dat (Index 1024) ()
 connect component@(Component i) = Addressing $ do
     (addr, _) <- ask
     tell (mempty, AddrMap $ Map.singleton i $ addr)
 
-firstIn :: FanIn a -> Maybe a
+firstIn :: FanIn dom a -> Maybe a
 firstIn = getFirst . getFanIn
 
-fanInMaybe :: Maybe a -> FanIn a
+fanInMaybe :: Maybe a -> FanIn dom a
 fanInMaybe = FanIn . First
 
-fanIn :: a -> FanIn a
+fanIn :: a -> FanIn dom a
 fanIn = fanInMaybe . pure
 
 matchAddr
     :: (addr -> Maybe addr')
-    -> Addressing s dat addr' a
-    -> Addressing s dat addr a
+    -> Addressing s dom dat addr' a
+    -> Addressing s dom dat addr a
 matchAddr match body = Addressing $ rws $ \(addr, addrs) s ->
   let addr' = fanInMaybe . (match =<<) . firstIn $ addr
   in runRWS (unAddressing body) (addr', addrs) s
 
 from
-    :: forall addr' dat addr a s. (Integral addr, Ord addr, Integral addr', Bounded addr')
+    :: forall addr' dat addr a dom s. (Integral addr, Ord addr, Integral addr', Bounded addr')
     => addr
-    -> Addressing s dat addr' a
-    -> Addressing s dat addr a
+    -> Addressing s dom dat addr' a
+    -> Addressing s dom dat addr a
 from base = matchAddr $ \addr -> do
     guard $ addr >= base
     let offset = addr - base
