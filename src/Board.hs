@@ -2,15 +2,11 @@
 {-# LANGUAGE RankNTypes #-}
 module Board where
 
-import Clash.Prelude hiding (Signal)
+import Clash.Prelude
 import Data.Maybe
 import Control.Monad
 import Control.Monad.RWS
 import Assoc as Map
-
-import Control.Monad.Identity
-
-type Signal (dom :: Domain) = Identity
 
 type Key = Int
 
