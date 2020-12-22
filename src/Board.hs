@@ -51,11 +51,11 @@ readWrite_ mkComponent = Addressing $ do
     return component
 
 ram0
-    :: (1 <= n)
+    :: (HiddenClockResetEnable dom, 1 <= n, NFDataX dat, Num dat)
     => SNat n
-    -> Addressing s dom (Index 1024) addr (Component s (Index 1024))
+    -> Addressing s dom dat addr (Component s (Index 1024))
 ram0 size@SNat = readWrite_ $ \addr ->
-    Just <$> negate . fromMaybe 2 <$> addr
+    Just <$> negate . maybe 2 fromIntegral <$> addr
 
 connect
     :: Component s (Index 1024)
@@ -95,7 +95,8 @@ from base = matchAddr $ \addr -> do
     lim = fromIntegral (maxBound :: addr')
 
 topEntity
-    :: Signal System (Maybe (Index 0x0400))
+    :: (HiddenClockResetEnable System)
+    => Signal System (Maybe (Index 0x0400))
     -> (Signal System (Maybe (Index 0x0400)), ())
 topEntity addr = memoryMap addr $ do
     ram <- ram0 (SNat @0x0400)
