@@ -42,7 +42,8 @@ memoryMap addr body = (join <$> firstIn read, x)
     (x, (read, conns)) = evalRWS (unAddressing body) (fanInMaybe addr, conns) 0
 
 readWrite_
-    :: (Signal dom (Maybe addr') -> Signal dom (Maybe dat))
+    :: (HiddenClockResetEnable dom)
+    => (Signal dom (Maybe addr') -> Signal dom (Maybe dat))
     -> Addressing s dom dat addr (Component s addr')
 readWrite_ mkComponent = Addressing $ do
     component@(Component i) <- Component <$> get <* modify succ
@@ -57,7 +58,7 @@ ram0
     => SNat n
     -> Addressing s dom dat addr (Component s (Index n))
 ram0 size@SNat = readWrite_ $ \addr ->
-    Just <$> negate . maybe 2 fromIntegral <$> addr
+    fmap Just $ blockRam1 ClearOnReset size 0 (fromMaybe 0 <$> addr) (pure Nothing)
 
 connect
     :: Component s addr
