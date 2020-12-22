@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingStrategies, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RankNTypes #-}
 module Board where
 
 import Clash.Prelude
@@ -7,30 +8,32 @@ import Control.Monad
 import Control.Monad.RWS
 import Assoc as Map
 
-newtype Component addr = Component Int
+type Key = Int
+
+newtype Component s addr = Component Key
     deriving newtype (Eq, Ord)
 
 newtype FanIn a = FanIn{ getFanIn :: First a }
     deriving newtype (Semigroup, Monoid)
 
-newtype AddrMap = AddrMap{ addrMap :: [(Int,(FanIn (Index 0x0400)))] }
+newtype AddrMap s = AddrMap{ addrMap :: Map Int (FanIn (Index 0x0400)) }
     deriving newtype (Monoid)
 
-instance Semigroup (AddrMap) where
-    AddrMap map1 <> AddrMap map2 = AddrMap $ Map.unionWithKey (const mappend) map1 map2
+instance Semigroup (AddrMap s) where
+    AddrMap map1 <> AddrMap map2 = AddrMap $ unionWithKey (const mappend) map1 map2
 
-newtype Addressing dat addr a = Addressing
+newtype Addressing s dat addr a = Addressing
     { unAddressing :: RWS
-          (FanIn addr, AddrMap)
-          (FanIn (Maybe dat), AddrMap)
-          Int
+          (FanIn addr, AddrMap s)
+          (FanIn (Maybe dat), AddrMap s)
+          Key
           a
     }
     deriving newtype (Functor, Applicative, Monad)
 
 memoryMap
     :: Maybe addr
-    -> (Addressing dat addr a)
+    -> (forall s. Addressing s dat addr a)
     -> (Maybe dat, a)
 memoryMap addr body = (join (firstIn read), x)
   where
@@ -38,7 +41,7 @@ memoryMap addr body = (join (firstIn read), x)
 
 readWrite_
     :: ((Maybe (Index 1024)) -> (Maybe dat))
-    -> Addressing dat addr (Component (Index 1024))
+    -> Addressing s dat addr (Component s (Index 1024))
 readWrite_ mkComponent = Addressing $ do
     component@(Component i) <- Component <$> get <* modify succ
     (_, addrs) <- ask
@@ -50,13 +53,13 @@ readWrite_ mkComponent = Addressing $ do
 ram0
     :: (1 <= n)
     => SNat n
-    -> Addressing (Index 1024) addr (Component (Index 1024))
+    -> Addressing s (Index 1024) addr (Component s (Index 1024))
 ram0 size@SNat = readWrite_ $ \addr ->
     Just $ negate (fromMaybe 2 addr)
 
 connect
-    :: Component (Index 1024)
-    -> Addressing dat (Index 1024) ()
+    :: Component s (Index 1024)
+    -> Addressing s dat (Index 1024) ()
 connect component@(Component i) = Addressing $ do
     (addr, _) <- ask
     tell (mempty, AddrMap $ Map.singleton i $ addr)
@@ -72,17 +75,17 @@ fanIn = fanInMaybe . pure
 
 matchAddr
     :: (addr -> Maybe addr')
-    -> Addressing dat addr' a
-    -> Addressing dat addr a
+    -> Addressing s dat addr' a
+    -> Addressing s dat addr a
 matchAddr match body = Addressing $ rws $ \(addr, addrs) s ->
   let addr' = fanInMaybe . (match =<<) . firstIn $ addr
   in runRWS (unAddressing body) (addr', addrs) s
 
 from
-    :: forall addr' dat addr a. (Integral addr, Ord addr, Integral addr', Bounded addr')
+    :: forall addr' dat addr a s. (Integral addr, Ord addr, Integral addr', Bounded addr')
     => addr
-    -> Addressing dat addr' a
-    -> Addressing dat addr a
+    -> Addressing s dat addr' a
+    -> Addressing s dat addr a
 from base = matchAddr $ \addr -> do
     guard $ addr >= base
     let offset = addr - base
