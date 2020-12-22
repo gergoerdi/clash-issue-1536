@@ -8,15 +8,16 @@ import Control.Monad
 import Control.Monad.RWS
 
 import Unsafe.Coerce
-import Containers.Data.Map as Map
+import Assoc as Map
 
-newtype Component s addr = Component Int
+type Key = Unsigned 32
+newtype Component s addr = Component Key
     deriving newtype (Eq, Ord)
 
 newtype FanIn dom a = FanIn{ getFanIn :: Signal dom `Ap` First a }
     deriving newtype (Semigroup, Monoid)
 
-newtype AddrMap s dom = AddrMap{ addrMap :: Map Int (FanIn dom ()) }
+newtype AddrMap s dom = AddrMap{ addrMap :: Map Key (FanIn dom ()) }
     deriving newtype (Monoid)
 
 instance Semigroup (AddrMap s dom) where
@@ -26,7 +27,7 @@ newtype Addressing s dom dat addr a = Addressing
     { unAddressing :: RWS
           (FanIn dom addr, AddrMap s dom)
           (FanIn dom (Maybe dat), AddrMap s dom)
-          Int
+          Key
           a
     }
     deriving newtype (Functor, Applicative, Monad)
