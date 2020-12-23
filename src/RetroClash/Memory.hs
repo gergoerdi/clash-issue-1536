@@ -3,6 +3,7 @@
 module RetroClash.Memory where
 
 import Clash.Prelude
+import Control.Arrow (first, second)
 import Data.Maybe
 import Control.Monad
 import Control.Monad.RWS
@@ -26,7 +27,7 @@ instance Semigroup (AddrMap s dom) where
 
 newtype Addressing s dom dat addr a = Addressing
     { unAddressing :: RWS
-          (FanIn dom addr, AddrMap s dom)
+          (FanIn dom addr, Signal dom (Maybe dat), AddrMap s dom)
           (FanIn dom (Maybe dat), AddrMap s dom)
           Key
           a
@@ -35,21 +36,22 @@ newtype Addressing s dom dat addr a = Addressing
 
 memoryMap
     :: Signal dom (Maybe addr)
+    -> Signal dom (Maybe dat)
     -> (forall s. Addressing s dom dat addr a)
     -> (Signal dom (Maybe dat), a)
-memoryMap addr body = (join <$> firstIn read, x)
+memoryMap addr wr body = (join <$> firstIn read, x)
   where
-    (x, (read, conns)) = evalRWS (unAddressing body) (fanInMaybe addr, conns) 0
+    (x, (read, conns)) = evalRWS (unAddressing body) (fanInMaybe addr, wr, conns) 0
 
 readWrite_
     :: (HiddenClockResetEnable dom)
-    => (Signal dom (Maybe addr') -> Signal dom (Maybe dat))
+    => (Signal dom (Maybe addr') -> Signal dom (Maybe dat) -> Signal dom (Maybe dat))
     -> Addressing s dom dat addr (Component s addr')
 readWrite_ mkComponent = Addressing $ do
     component@(Component i) <- Component <$> get <* modify succ
-    (_, addrs) <- ask
+    (_, wr, addrs) <- ask
     let addr = firstIn . fromMaybe mempty $ Map.lookup i (addrMap addrs)
-        read = mkComponent $ unsafeCoerce addr
+        read = mkComponent (unsafeCoerce addr) wr
     tell (fanIn read, mempty)
     return component
 
@@ -57,16 +59,19 @@ ram0
     :: (HiddenClockResetEnable dom, 1 <= n, NFDataX dat, Num dat)
     => SNat n
     -> Addressing s dom dat addr (Component s (Index n))
-ram0 size@SNat = readWrite_ $ \addr ->
-    fmap Just $ blockRam1 ClearOnReset size 0 (fromMaybe 0 <$> addr) (pure Nothing)
+ram0 size@SNat = readWrite_ $ \addr wr ->
+    fmap Just $ blockRam1 ClearOnReset size 0 (fromMaybe 0 <$> addr) (liftA2 (,) <$> addr <*> wr)
 
 matchAddr
     :: (addr -> Maybe addr')
     -> Addressing s dom dat addr' a
     -> Addressing s dom dat addr a
-matchAddr match body = Addressing $ rws $ \(addr, addrs) s ->
-  let addr' = fanInMaybe . fmap (match =<<) . firstIn $ addr
-  in runRWS (unAddressing body) (addr', addrs) s
+matchAddr match body = Addressing $ rws $ \(addr, wr, addrs) s ->
+    let addr' = fanInMaybe . fmap (match =<<) . firstIn $ addr
+    in runRWS (unAddressing body) (addr', wr, addrs) s
+
+gated :: Signal dom Bool -> FanIn dom a -> FanIn dom a
+gated p sig = fanInMaybe $ mux p (firstIn sig) (pure Nothing)
 
 tag
     :: addr'
@@ -84,6 +89,13 @@ matchRight
     -> Addressing s dom dat (Either addr1 addr2) a
 matchRight = matchAddr $ either (const Nothing) Just
 
+override
+    :: Signal dom (Maybe dat)
+    -> Addressing s dom dat addr a
+    -> Addressing s dom dat addr a
+override sig = Addressing . censor (first $ mappend sig') . unAddressing
+  where
+    sig' = gated (isJust <$> sig) (fanIn sig)
 
 from
     :: forall addr' dat addr a dom s. (Integral addr, Ord addr, Integral addr', Bounded addr')
@@ -102,7 +114,7 @@ connect
     :: Component s addr
     -> Addressing s dom dat addr ()
 connect component@(Component i) = Addressing $ do
-    (addr, _) <- ask
+    (addr, _, _) <- ask
     tell (mempty, AddrMap $ Map.singleton i $ unsafeCoerce addr)
 
 firstIn :: FanIn dom a -> Signal dom (Maybe a)
