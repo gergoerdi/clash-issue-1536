@@ -8,18 +8,24 @@ import Data.Maybe
 import Control.Monad
 import Control.Monad.RWS
 
-import Unsafe.Coerce
-import Assoc as Map
+import Data.Kind
+import DAssoc as DMap
+import Data.GADT.Compare
+import Type.Reflection
 
 type Key = Int
+data Component s (addr :: Type) = Component (TypeRep addr) Key
 
-newtype Component s addr = Component Key
-    deriving newtype (Eq, Ord)
+instance GEq (Component s) where
+    geq (Component a _) (Component b _) = geq a b
+
+instance GCompare (Component s) where
+    gcompare (Component a _) (Component b _) = gcompare a b
 
 newtype FanIn dom a = FanIn{ getFanIn :: Signal dom `Ap` First a }
     deriving newtype (Semigroup, Monoid)
 
-newtype AddrMap s dom = AddrMap{ addrMap :: Map Key (FanIn dom ()) }
+newtype AddrMap s dom = AddrMap{ addrMap :: DMap (Component s) (FanIn dom) }
     deriving newtype (Monoid)
 
 instance Semigroup (AddrMap s dom) where
@@ -44,20 +50,20 @@ memoryMap addr wr body = (join <$> firstIn read, x)
     (x, (read, conns)) = evalRWS (unAddressing body) (fanInMaybe addr, wr, conns) 0
 
 readWrite
-    :: (HiddenClockResetEnable dom)
+    :: (HiddenClockResetEnable dom, Typeable addr')
     => (Signal dom (Maybe addr') -> Signal dom (Maybe dat) -> (Signal dom (Maybe dat), a))
     -> Addressing s dom dat addr (Component s addr', a)
 readWrite mkComponent = Addressing $ do
-    component@(Component i) <- Component <$> get <* modify succ
+    component <- Component typeRep <$> get <* modify succ
     (_, wr, addrs) <- ask
-    let addr = firstIn . fromMaybe mempty $ Map.lookup i (addrMap addrs)
+    let addr = firstIn . fromMaybe mempty $ DMap.lookup component (addrMap addrs)
         selected = isJust <$> addr
-        (read, x) = mkComponent (unsafeCoerce addr) wr
+        (read, x) = mkComponent addr wr
     tell (gated (delay False selected) $ fanIn read, mempty)
     return (component, x)
 
 readWrite_
-    :: (HiddenClockResetEnable dom)
+    :: (HiddenClockResetEnable dom, Typeable addr')
     => (Signal dom (Maybe addr') -> Signal dom (Maybe dat) -> Signal dom (Maybe dat))
     -> Addressing s dom dat addr (Component s addr')
 readWrite_ mkComponent = fmap fst $ readWrite $ \addr wr -> (mkComponent addr wr, ())
@@ -128,9 +134,9 @@ from base = matchAddr $ \addr -> do
 connect
     :: Component s addr
     -> Addressing s dom dat addr ()
-connect component@(Component i) = Addressing $ do
+connect component = Addressing $ do
     (addr, _, _) <- ask
-    tell (mempty, AddrMap $ Map.singleton i $ unsafeCoerce addr)
+    tell (mempty, AddrMap $ DMap.singleton component addr)
 
 firstIn :: FanIn dom a -> Signal dom (Maybe a)
 firstIn = fmap getFirst . getAp . getFanIn
