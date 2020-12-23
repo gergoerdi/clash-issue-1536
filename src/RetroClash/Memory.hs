@@ -55,6 +55,14 @@ readWrite_ mkComponent = Addressing $ do
     tell (fanIn read, mempty)
     return component
 
+romFromFile
+    :: (HiddenClockResetEnable dom, 1 <= n, BitPack dat)
+    => SNat n
+    -> FilePath
+    -> Addressing s dom dat addr (Component s (Index n))
+romFromFile size@SNat fileName = readWrite_ $ \addr _wr ->
+    fmap (Just . unpack) $ romFilePow2 fileName (maybe 0 bitCoerce <$> addr)
+
 ram0
     :: (HiddenClockResetEnable dom, 1 <= n, NFDataX dat, Num dat)
     => SNat n
