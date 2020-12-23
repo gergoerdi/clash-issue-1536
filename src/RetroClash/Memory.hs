@@ -43,17 +43,24 @@ memoryMap addr wr body = (join <$> firstIn read, x)
   where
     (x, (read, conns)) = evalRWS (unAddressing body) (fanInMaybe addr, wr, conns) 0
 
+readWrite
+    :: (HiddenClockResetEnable dom)
+    => (Signal dom (Maybe addr') -> Signal dom (Maybe dat) -> (Signal dom (Maybe dat), a))
+    -> Addressing s dom dat addr (Component s addr', a)
+readWrite mkComponent = Addressing $ do
+    component@(Component i) <- Component <$> get <* modify succ
+    (_, wr, addrs) <- ask
+    let addr = firstIn . fromMaybe mempty $ Map.lookup i (addrMap addrs)
+        selected = isJust <$> addr
+        (read, x) = mkComponent (unsafeCoerce addr) wr
+    tell (gated (delay False selected) $ fanIn read, mempty)
+    return (component, x)
+
 readWrite_
     :: (HiddenClockResetEnable dom)
     => (Signal dom (Maybe addr') -> Signal dom (Maybe dat) -> Signal dom (Maybe dat))
     -> Addressing s dom dat addr (Component s addr')
-readWrite_ mkComponent = Addressing $ do
-    component@(Component i) <- Component <$> get <* modify succ
-    (_, wr, addrs) <- ask
-    let addr = firstIn . fromMaybe mempty $ Map.lookup i (addrMap addrs)
-        read = mkComponent (unsafeCoerce addr) wr
-    tell (fanIn read, mempty)
-    return component
+readWrite_ mkComponent = fmap fst $ readWrite $ \addr wr -> (mkComponent addr wr, ())
 
 romFromFile
     :: (HiddenClockResetEnable dom, 1 <= n, BitPack dat)
