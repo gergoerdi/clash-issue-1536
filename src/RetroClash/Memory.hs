@@ -43,6 +43,21 @@ memoryMap addr wr body = (join <$> firstIn read, x)
   where
     (x, (read, conns)) = evalRWS (unAddressing body) (fanInMaybe addr, wr, conns) 0
 
+memoryMap_
+    :: Signal dom (Maybe addr)
+    -> Signal dom (Maybe dat)
+    -> (forall s. Addressing s dom dat addr ())
+    -> Signal dom (Maybe dat)
+memoryMap_ addr wr body = fst $ memoryMap addr wr body
+
+conduit
+    :: (HiddenClockResetEnable dom)
+    => Signal dom (Maybe dat)
+    -> Addressing s dom dat addr (Component s addr', Signal dom (Maybe addr'), Signal dom (Maybe dat))
+conduit read = do
+    (component, (addr, wr)) <- readWrite $ \addr wr -> (read, (addr, wr))
+    return (component, addr, wr)
+
 readWrite
     :: (HiddenClockResetEnable dom)
     => (Signal dom (Maybe addr') -> Signal dom (Maybe dat) -> (Signal dom (Maybe dat), a))
