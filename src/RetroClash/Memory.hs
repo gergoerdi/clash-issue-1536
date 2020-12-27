@@ -6,7 +6,8 @@ import Clash.Prelude
 import Control.Arrow (first, second)
 import Data.Maybe
 import Control.Monad
-import Control.Monad.RWS
+import RetroClash.Internal.RWS
+import RetroClash.Internal.Monoid
 
 import Unsafe.Coerce
 import Assoc as Map
