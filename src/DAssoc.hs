@@ -17,10 +17,10 @@ instance (GCompare k) => Monoid (DMap k f) where
     mempty = MkDMap []
 
 unionWithKey :: (GCompare k) => (forall a. k a -> f a -> f a -> f a) -> DMap k f -> DMap k f -> DMap k f
-unionWithKey f l r = go r (dassocs l)
+unionWithKey f l r = go l (dassocs r)
   where
-    go r [] = r
-    go r ((k :=> v) : xs) = go (insertWithKey f k v l) xs
+    go l [] = l
+    go l ((k :=> v) : xs) = go (insertWithKey f k v l) xs
 
 union :: (GCompare k) => DMap k f -> DMap k f -> DMap k f
 union = unionWithKey $ \ _ old new -> old
@@ -29,9 +29,9 @@ insertWithKey :: (GCompare k) => (k a -> f a -> f a -> f a) -> k a -> f a -> DMa
 insertWithKey f k0 v0 = MkDMap . go . dassocs
   where
     go [] = [k0 :=> v0]
-    go ((k1 :=> v1) : xs) = case gcompare k0 k1 of
+    go ((k1 :=> v1) : xs) = case k0 `gcompare` k1 of
         GLT -> (k0 :=> v0) : (k1 :=> v1) : xs
-        GEQ -> (k0 :=> f k0 v0 v1) : xs
+        GEQ -> (k0 :=> f k0 v1 v0) : xs
         GGT -> (k1 :=> v1) : go xs
 
 lookup :: (GCompare k) => k a -> DMap k f -> Maybe (f a)

@@ -11,7 +11,7 @@ instance (Ord k) => Monoid (Map k a) where
     mempty = MkMap []
 
 unionWithKey :: (Ord k) => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
-unionWithKey f l r = fold (insertWithKey f) r (assocs l)
+unionWithKey f l r = fold (insertWithKey f) l (assocs r)
 
 union :: (Ord k) => Map k a -> Map k a -> Map k a
 union = unionWithKey (\ _ old new -> old)
@@ -28,7 +28,7 @@ insertWithKey f x0@(k0, v0) = MkMap . go . assocs
     go [] = [x0]
     go (x1@(k1, v1) : xs) = case compare k0 k1 of
         LT -> x0 : x1 : xs
-        EQ -> (k0, f k0 v0 v1) : xs
+        EQ -> (k0, f k0 v1 v0) : xs
         GT -> x1 : go xs
 
 lookup :: (Eq k) => k -> Map k a -> Maybe a
