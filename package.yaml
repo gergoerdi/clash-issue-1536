@@ -17,7 +17,6 @@ dependencies:
   - ghc-typelits-knownnat
 
   - mtl
-  - transformers
   - deepseq
   - dependent-sum
 

@@ -1,12 +1,6 @@
-{-# LANGUAGE DerivingStrategies, GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RankNTypes #-}
 module Board where
 
 import Clash.Prelude
-import Data.Maybe
-import Control.Monad
-import Control.Monad.RWS
-
 import RetroClash.Memory
 
 topEntity
