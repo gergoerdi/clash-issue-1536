@@ -11,10 +11,10 @@ instance (Ord k) => Monoid (Map k a) where
     mempty = MkMap []
 
 unionWithKey :: (Ord k) => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
-unionWithKey f l r = fold (insertWithKey f) l (assocs r)
+unionWithKey f l r = fold (insertWithKey f) r (assocs l)
 
 union :: (Ord k) => Map k a -> Map k a -> Map k a
-union = unionWithKey (\ _ old new -> old)
+union = unionWithKey (\ _ new old -> old)
 
 fold :: (a -> b -> b) -> b -> [a] -> b
 fold f = go
