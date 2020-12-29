@@ -10,7 +10,7 @@ import RetroClash.Internal.RWS
 import RetroClash.Internal.Monoid
 
 import Unsafe.Coerce
-import Assoc as Map
+import RetroClash.Internal.Assoc as Map
 
 type Key = Int
 

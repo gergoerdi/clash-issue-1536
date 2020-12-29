@@ -1,5 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
-module DAssoc where
+module RetroClash.Internal.DAssoc where
 
 import Data.Kind
 import Data.Dependent.Sum as DSum

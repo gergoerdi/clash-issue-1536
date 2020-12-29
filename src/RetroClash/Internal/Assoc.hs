@@ -1,4 +1,4 @@
-module Assoc where
+module RetroClash.Internal.Assoc where
 
 import Clash.Prelude hiding (lookup, fold)
 
