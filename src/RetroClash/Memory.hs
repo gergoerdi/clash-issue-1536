@@ -24,7 +24,7 @@ newtype AddrMap s dom = AddrMap{ addrMap :: Map Key (FanIn dom ()) }
     deriving newtype (Monoid)
 
 instance Semigroup (AddrMap s dom) where
-    AddrMap map1 <> AddrMap map2 = AddrMap $ unionWithKey (const mappend) map1 map2
+    AddrMap map1 <> AddrMap map2 = AddrMap $ unionWithKey (const $ flip (<>)) map1 map2
 
 newtype Addressing s dom dat addr a = Addressing
     { unAddressing :: RWS
