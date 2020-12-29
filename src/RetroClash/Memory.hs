@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 module RetroClash.Memory where
 
+import RetroClash.Port
 import Clash.Prelude
 import Control.Arrow (first, second)
 import Data.Maybe
@@ -92,6 +93,25 @@ ram0
     -> Addressing s dom dat addr (Component s (Index n))
 ram0 size@SNat = readWrite_ $ \addr wr ->
     fmap Just $ blockRam1 ClearOnReset size 0 (fromMaybe 0 <$> addr) (liftA2 (,) <$> addr <*> wr)
+
+type Port dom addr dat a = Signal dom (Maybe (PortCommand addr dat)) -> (Signal dom (Maybe dat), a)
+type Port_ dom addr dat = Signal dom (Maybe (PortCommand addr dat)) -> Signal dom (Maybe dat)
+
+port
+    :: (HiddenClockResetEnable dom, NFDataX dat)
+    => Port dom addr' dat a
+    -> Addressing s dom dat addr (Component s addr', a)
+port mkPort = readWrite $ \addr wr ->
+    let (read, x) = mkPort $ portFromAddr addr wr
+    in (delay Nothing read, x)
+
+port_
+    :: (HiddenClockResetEnable dom, NFDataX dat)
+    => Port_ dom addr' dat
+    -> Addressing s dom dat addr (Component s addr')
+port_ mkPort = readWrite_ $ \addr wr ->
+    let read = mkPort $ portFromAddr addr wr
+    in (delay Nothing read)
 
 matchAddr
     :: (addr -> Maybe addr')
