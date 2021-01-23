@@ -1,8 +1,10 @@
+{-# LANGUAGE DeriveFunctor #-}
 module RetroClash.Internal.Assoc where
 
 import Clash.Prelude hiding (lookup, fold)
 
 newtype Map k a = MkMap{ assocs :: [(k, a)] }
+    deriving (Show, Functor)
 
 instance (Ord k) => Semigroup (Map k a) where
     (<>) = union
