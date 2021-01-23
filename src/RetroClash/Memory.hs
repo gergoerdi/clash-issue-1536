@@ -27,10 +27,16 @@ newtype AddrMap s dom = AddrMap{ addrMap :: Map Key (FanIn dom ()) }
 instance Semigroup (AddrMap s dom) where
     AddrMap map1 <> AddrMap map2 = AddrMap $ unionWithKey (const $ flip (<>)) map1 map2
 
+newtype ReadMap s dom dat = ReadMap{ readMap :: Map Key (FanIn dom (Maybe dat)) }
+    deriving newtype (Monoid)
+
+instance Semigroup (ReadMap s dom dat) where
+    ReadMap map1 <> ReadMap map2 = ReadMap $ Map.unionWithKey (const mappend) map1 map2
+
 newtype Addressing s dom dat addr a = Addressing
     { unAddressing :: RWS
-          (FanIn dom addr, Signal dom (Maybe dat), AddrMap s dom)
-          (FanIn dom (Maybe dat), AddrMap s dom)
+          (FanIn dom addr, Signal dom (Maybe dat), ReadMap s dom dat, AddrMap s dom)
+          (FanIn dom (Maybe dat), ReadMap s dom dat, AddrMap s dom)
           Key
           a
     }
@@ -43,7 +49,7 @@ memoryMap
     -> (Signal dom (Maybe dat), a)
 memoryMap addr wr body = (join <$> firstIn read, x)
   where
-    (x, (read, conns)) = evalRWS (unAddressing body) (fanInMaybe addr, wr, conns) 0
+    (x, (read, reads, conns)) = evalRWS (unAddressing body) (fanInMaybe addr, wr, reads, conns) 0
 
 memoryMap_
     :: Signal dom (Maybe addr)
@@ -66,11 +72,10 @@ readWrite
     -> Addressing s dom dat addr (Component s addr', a)
 readWrite mkComponent = Addressing $ do
     component@(Component i) <- Component <$> get <* modify succ
-    (_, wr, addrs) <- ask
-    let addr = firstIn . fromMaybe mempty $ Map.lookup i (addrMap addrs)
-        selected = isJust <$> addr
+    (_, wr, _, addrs) <- ask
+    let addr = firstIn . fromMaybe (error "readWrite") $ Map.lookup i (addrMap addrs)
         (read, x) = mkComponent (unsafeCoerce addr) wr
-    tell (gated (delay False selected) $ fanIn read, mempty)
+    tell (mempty, ReadMap $ Map.singleton i (fanIn read), mempty)
     return (component, x)
 
 readWrite_
@@ -117,9 +122,10 @@ matchAddr
     :: (addr -> Maybe addr')
     -> Addressing s dom dat addr' a
     -> Addressing s dom dat addr a
-matchAddr match body = Addressing $ rws $ \(addr, wr, addrs) s ->
+matchAddr match body = Addressing $ rws $ \(addr, wr, reads, addrs) s ->
     let addr' = fanInMaybe . fmap (match =<<) . firstIn $ addr
-    in runRWS (unAddressing body) (addr', wr, addrs) s
+        selected = isJust <$> firstIn addr'
+    in runRWS (unAddressing body) (addr', wr, reads, addrs) s
 
 gated :: Signal dom Bool -> FanIn dom a -> FanIn dom a
 gated p sig = fanInMaybe $ mux p (firstIn sig) (pure Nothing)
@@ -142,11 +148,12 @@ matchRight = matchAddr $ either (const Nothing) Just
 
 override
     :: Signal dom (Maybe dat)
-    -> Addressing s dom dat addr a
-    -> Addressing s dom dat addr a
-override sig = Addressing . censor (first $ mappend sig') . unAddressing
-  where
-    sig' = gated (isJust <$> sig) (fanIn sig)
+    -> Addressing s dom dat addr ()
+override sig = Addressing $ do
+    (addr, _, _, _) <- ask
+    let selected = isJust <$> firstIn addr
+        sig' = gated (selected .&&. isJust <$> sig) (fanIn sig)
+    tell (sig', mempty, mempty)
 
 from
     :: forall addr' dat addr a dom s. (Integral addr, Ord addr, Integral addr', Bounded addr')
@@ -162,11 +169,14 @@ from base = matchAddr $ \addr -> do
     lim = fromIntegral (maxBound :: addr')
 
 connect
-    :: Component s addr
+    :: (HiddenClockResetEnable dom)
+    => Component s addr
     -> Addressing s dom dat addr ()
 connect component@(Component i) = Addressing $ do
-    (addr, _, _) <- ask
-    tell (mempty, AddrMap $ Map.singleton i $ unsafeCoerce addr)
+    (addr, _, reads, _) <- ask
+    let read = fromMaybe (error "connect") $ Map.lookup i (readMap reads)
+        selected = isJust <$> firstIn addr
+    tell (gated (delay False selected) read, mempty, AddrMap $ Map.singleton i $ unsafeCoerce addr)
 
 firstIn :: FanIn dom a -> Signal dom (Maybe a)
 firstIn = fmap getFirst . getAp . getFanIn
