@@ -66,8 +66,9 @@ conduit read = do
     (component, (addr, wr)) <- readWrite $ \addr wr -> (read, (addr, wr))
     return (component, addr, wr)
 
+{-# INLINE readWrite #-}
 readWrite
-    :: (HiddenClockResetEnable dom)
+    :: forall addr' addr dat a dom s. (HiddenClockResetEnable dom)
     => (Signal dom (Maybe addr') -> Signal dom (Maybe dat) -> (Signal dom (Maybe dat), a))
     -> Addressing s dom dat addr (Component s addr', a)
 readWrite mkComponent = Addressing $ do
@@ -78,12 +79,14 @@ readWrite mkComponent = Addressing $ do
     tell (mempty, ReadMap $ Map.singleton i (fanIn read), mempty)
     return (component, x)
 
+{-# INLINE readWrite_ #-}
 readWrite_
-    :: (HiddenClockResetEnable dom)
+    :: forall addr' addr dat dom s. (HiddenClockResetEnable dom)
     => (Signal dom (Maybe addr') -> Signal dom (Maybe dat) -> Signal dom (Maybe dat))
     -> Addressing s dom dat addr (Component s addr')
 readWrite_ mkComponent = fmap fst $ readWrite $ \addr wr -> (mkComponent addr wr, ())
 
+{-# INLINE romFromFile #-}
 romFromFile
     :: (HiddenClockResetEnable dom, 1 <= n, BitPack dat)
     => SNat n
@@ -92,6 +95,7 @@ romFromFile
 romFromFile size@SNat fileName = readWrite_ $ \addr _wr ->
     fmap (Just . unpack) $ romFilePow2 fileName (maybe 0 bitCoerce <$> addr)
 
+{-# INLINE ram0 #-}
 ram0
     :: (HiddenClockResetEnable dom, 1 <= n, NFDataX dat, Num dat)
     => SNat n
@@ -160,13 +164,18 @@ from
     => addr
     -> Addressing s dom dat addr' a
     -> Addressing s dom dat addr a
-from base = matchAddr $ \addr -> do
+from base = matchAddr $ from_ base (maxBound :: addr')
+
+from_
+    :: forall addr' addr. (Integral addr, Ord addr, Integral addr', Bounded addr')
+    => addr
+    -> addr'
+    -> addr -> Maybe addr'
+from_ base lim addr = do
     guard $ addr >= base
     let offset = addr - base
-    guard $ offset <= lim
+    guard $ offset <= fromIntegral lim
     return $ fromIntegral offset
-  where
-    lim = fromIntegral (maxBound :: addr')
 
 connect
     :: (HiddenClockResetEnable dom)
