@@ -1,4 +1,4 @@
-resolver: clash-HEAD.yaml
+resolver: lts-16.21
 
 extra-deps:
   - barbies-2.0.1.0
@@ -9,18 +9,18 @@ extra-deps:
   - dependent-sum-0.7.1.0
   - dependent-map-0.4.0.0
 
-packages:
-  # - containers
-  - '.'
+  - concurrent-supply-0.1.8
+  - ghc-typelits-extra-0.4.1
+  - clash-compiler-HEAD/clash-lib
+  - clash-compiler-HEAD/clash-ghc
+  - clash-compiler-HEAD/clash-prelude
 
-# extra-deps:
-#   - Cabal-3.0.1.0
-#   - binary-0.8.7.0
-#   - ghc-boot-8.8.3
-#   - ghc-boot-th-8.8.3
-#   - ghci-8.8.3
-#   - parsec-3.1.14.0
-#   - text-1.2.4.0
+flags:
+    clash-prelude:
+      multiple-hidden: false
+
+packages:
+  - '.'
 
 ghc-options:
   dependent-map: -fexpose-all-unfoldings -fno-worker-wrapper
