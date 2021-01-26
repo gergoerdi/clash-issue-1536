@@ -16,15 +16,21 @@ peripherals dips cmd = pure Nothing
 #define RAM 1
 #define VID 1
 #define PORT 1
+#define IRQ 1
 
 topEntity
     :: (HiddenClockResetEnable System)
     => Signal System (BitVector 8)
     -> Signal System (Maybe (Unsigned 8))
+    -> Signal System (Maybe (Unsigned 8))
     -> Signal System (Maybe (Either (Unsigned 8) (Unsigned 16)))
     -> Signal System (Maybe (Unsigned 8))
     -> (Signal System (Maybe (Unsigned 8)), (Signal System (Maybe (Index 7168)), Signal System (Maybe (Unsigned 8))))
-topEntity dips vidRead addr wr = memoryMap addr wr $ do
+topEntity dips rst vidRead addr wr = memoryMap addr wr $ do
+#if IRQ
+    override rst
+#endif
+
 #if ROM
     rom <- romFromFile (SNat @0x2000) "_build/SpaceInvaders.bin"
 #endif
