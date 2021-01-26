@@ -4,13 +4,10 @@ module RetroClash.Internal.Assoc where
 import Clash.Prelude hiding (lookup, fold)
 
 newtype Map k a = MkMap{ assocs :: [(k, a)] }
-    deriving (Show, Functor)
+    deriving (Show, Functor, Monoid)
 
 instance (Ord k) => Semigroup (Map k a) where
     (<>) = union
-
-instance (Ord k) => Monoid (Map k a) where
-    mempty = MkMap []
 
 unionWithKey :: (Ord k) => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWithKey f l r = fold (insertWithKey f) r (assocs l)
