@@ -3,7 +3,7 @@ resolver: lts-16.21
 
 packages:
   - github: gergoerdi/clash-compiler
-    commit: 62411778020b09433744d267acd5aa3deb85b04f
+    commit: 21d6e81374506b0f8dea3861767a01b207c115f2
     subdirs:
       - clash-ghc
       - clash-prelude
