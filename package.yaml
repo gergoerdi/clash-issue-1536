@@ -19,6 +19,8 @@ dependencies:
   - mtl
   - deepseq
   - dependent-sum
+  - containers
+  - template-haskell
 
 # Anything that Clash uses by default should go here
 default-extensions:
