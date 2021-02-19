@@ -28,11 +28,11 @@ insertWithKey f x0@(k0, v0) = MkMap . go . assocs
     go [] = [x0]
     go (x1@(k1,v1):xs) = if k0 == k1 then (k0, f k0 v1 v0) : xs else x1 : go xs
 
-lookup :: (Eq k) => k -> Map k a -> Maybe a
+lookup :: (Eq k) => k -> Map k a -> a
 lookup k0 = go . assocs
   where
-    go [] = Nothing
-    go ((k1,v1):xs) = if k1 == k0 then Just v1 else go xs
+    go [] = undefined
+    go ((k1,v1):xs) = if k1 == k0 then v1 else go xs
 
 singleton :: k -> a -> Map k a
 singleton k a = MkMap [(k, a)]

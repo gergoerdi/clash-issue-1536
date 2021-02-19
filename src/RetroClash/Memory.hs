@@ -77,7 +77,7 @@ readWrite
 readWrite mkComponent = Addressing $ do
     component@(Component i) <- Component <$> get <* modify succ
     (_, wr, _, addrs) <- ask
-    let addr = firstIn . fromMaybe (error "readWrite") $ Map.lookup i (addrMap addrs)
+    let addr = firstIn $ Map.lookup i (addrMap addrs)
         (read, x) = mkComponent (unsafeCoerce addr) wr
     tell (mempty, ReadMap $ Map.singleton i (fanIn read), mempty)
     return (component, x)
@@ -189,7 +189,7 @@ connect
     -> Addressing s dom dat addr ()
 connect component@(Component i) = Addressing $ do
     (addr, _, reads, _) <- ask
-    let read = fromMaybe (error "connect") $ Map.lookup i (readMap reads)
+    let read = Map.lookup i (readMap reads)
         selected = isJust <$> firstIn addr
     tell (gated (delay False selected) read, mempty, AddrMap $ Map.singleton i $ unsafeCoerce addr)
 
