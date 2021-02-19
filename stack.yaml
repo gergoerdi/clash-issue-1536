@@ -1,4 +1,4 @@
-resolver: lts-16.21
+resolver: lts-17.2
 
 extra-deps:
   - barbies-2.0.1.0
@@ -8,9 +8,14 @@ extra-deps:
   - constraints-extras-0.3.0.2
   - dependent-sum-0.7.1.0
   - dependent-map-0.4.0.0
+  - some-1.0.1
 
-  - concurrent-supply-0.1.8
-  - ghc-typelits-extra-0.4.1
+  - arrows-0.4.4.2
+  - Stream-0.4.7.2
+  - lazysmallcheck-0.6
+  - hedgehog-1.0.4
+  - tasty-hedgehog-1.0.1.0
+
   - clash-compiler-HEAD/clash-lib
   - clash-compiler-HEAD/clash-ghc
   - clash-compiler-HEAD/clash-prelude
